@@ -119,7 +119,7 @@
     </div>
     <div id="translatedBox" class="hidden">
       <div class="label" id="toLabel">🇪🇸 SPANISH (TRANSLATION)</div>
-      <div class="text-box translation" id="translatedText"></div>
+      <div class="text-box translation" id="translatedText" onclick="speakNow(this.textContent, lastSpeakLang)" style="cursor:pointer;" ></div>
     </div>
     <div class="btn-row hidden" id="actionBtns">
       <button class="action-btn listen-btn" onclick="reSpeak()">🔊 Listen again</button>
@@ -134,7 +134,7 @@
     <div id="textStatusMsg" class="status-msg hidden"></div>
     <div id="textTranslatedBox" class="hidden">
       <div class="label" id="textToLabel">🇪🇸 SPANISH (TRANSLATION)</div>
-      <div class="text-box translation" id="textTranslatedText"></div>
+      <div class="text-box translation" id="textTranslatedText" onclick="speakNow(this.textContent, lastSpeakLang)" style="cursor:pointer;" ></div>
     </div>
     <div class="btn-row hidden" id="textActionBtns">
       <button class="action-btn listen-btn" onclick="reSpeakText()">🔊 Listen</button>
@@ -291,15 +291,34 @@ async function translateText() {
 
 function speak(text, lang) {
   window.speechSynthesis.cancel();
-  setTimeout(() => {
+  function doSpeak() {
+    const voices = window.speechSynthesis.getVoices();
     const u = new SpeechSynthesisUtterance(text);
-    u.lang = lang; u.rate = 0.9; u.volume = 1;
+    u.lang = lang; u.rate = 0.85; u.volume = 1; u.pitch = 1;
+    const match = voices.find(v => v.lang && v.lang.startsWith(lang.split('-')[0]));
+    if (match) u.voice = match;
     window.speechSynthesis.speak(u);
-  }, 300);
+  }
+  if (window.speechSynthesis.getVoices().length > 0) {
+    doSpeak();
+  } else {
+    window.speechSynthesis.onvoiceschanged = doSpeak;
+    window.speechSynthesis.getVoices();
+  }
 }
 
-function reSpeak() { if (lastTranslated) speak(lastTranslated, lastSpeakLang); }
-function reSpeakText() { if (lastTranslated) speak(lastTranslated, lastSpeakLang); }
+function speakNow(text, lang) {
+  window.speechSynthesis.cancel();
+  const voices = window.speechSynthesis.getVoices();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = lang; u.rate = 0.85; u.volume = 1; u.pitch = 1;
+  const match = voices.find(v => v.lang && v.lang.startsWith(lang.split('-')[0]));
+  if (match) u.voice = match;
+  window.speechSynthesis.speak(u);
+}
+
+function reSpeak() { if (lastTranslated) speakNow(lastTranslated, lastSpeakLang); }
+function reSpeakText() { if (lastTranslated) speakNow(lastTranslated, lastSpeakLang); }
 
 function resetAll() {
   activeRec = false; isRecording = false;
