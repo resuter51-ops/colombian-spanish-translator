@@ -206,6 +206,7 @@ let finalTranscript = '';
 let lastTranslated = '';
 let lastSpeakLang = 'es-ES';
 let translated = false;
+let micReady = false;
 
 const TRANSLATE_URL = 'https://john-174a7c51.base44.app/functions/translate';
 
@@ -289,6 +290,12 @@ function startRecording() {
   recognition.continuous = false;
   recognition.interimResults = true;
 
+  // Fires when the mic is actually ready and listening
+  recognition.onspeechstart = () => {
+    micReady = true;
+    document.getElementById('micLabel').innerHTML = '⏹️<br/>Listening...<br/>Tap to stop';
+  };
+
   recognition.onresult = (e) => {
     let interim = '';
     let finalText = '';
@@ -332,10 +339,11 @@ function startRecording() {
   };
 
   isRecording = true;
+  micReady = false;
   const btn = document.getElementById('micBtn');
   btn.style.background = 'linear-gradient(135deg, #e74c3c, #c0392b)';
   btn.style.border = '4px solid rgba(255,255,255,0.6)';
-  document.getElementById('micLabel').innerHTML = '⏹️<br/>Tap to<br/>translate';
+  document.getElementById('micLabel').innerHTML = '⏳<br/>Starting...<br/>(wait)';
   show('recIndicator'); hide('hint');
 
   try {
