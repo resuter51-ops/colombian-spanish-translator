@@ -287,7 +287,7 @@ function startRecording() {
 
   recognition = new SR();
   recognition.lang = direction === 'en-es' ? 'en-US' : 'es-ES';
-  recognition.continuous = false;
+  recognition.continuous = true;
   recognition.interimResults = true;
 
   // Fires when the mic is actually ready and listening
@@ -297,17 +297,18 @@ function startRecording() {
   };
 
   recognition.onresult = (e) => {
+    // e.resultIndex = index of FIRST new result since last onresult call
+    // Only read from there forward - never re-read old results = no duplicates
     let interim = '';
-    let finalText = '';
-    for (let i = 0; i < e.results.length; i++) {
+    for (let i = e.resultIndex; i < e.results.length; i++) {
       if (e.results[i].isFinal) {
-        finalText += e.results[i][0].transcript;
+        finalTranscript += (finalTranscript ? ' ' : '') + e.results[i][0].transcript;
       } else {
         interim += e.results[i][0].transcript;
       }
     }
-    finalTranscript = finalText || interim;
-    document.getElementById('originalText').textContent = finalTranscript;
+    const display = finalTranscript + (interim ? ' ' + interim : '');
+    document.getElementById('originalText').textContent = display.trim();
     show('originalBox');
   };
 
@@ -320,7 +321,22 @@ function startRecording() {
   };
 
   recognition.onend = () => {
-    isRecording = false;
+    // If user hasn't tapped to stop, restart to keep listening
+    // e.resultIndex in onresult ensures we never duplicate
+    if (isRecording && !translated) {
+      try {
+        recognition.start();
+      } catch (e) {
+        setTimeout(() => {
+          if (isRecording && !translated) {
+            try { recognition.start(); } catch (e2) {}
+          }
+        }, 100);
+      }
+      return;
+    }
+
+    // User tapped stop - translate what we have
     const btn = document.getElementById('micBtn');
     btn.style.background = 'linear-gradient(135deg, #003893, #CE1126)';
     btn.style.border = 'none';
