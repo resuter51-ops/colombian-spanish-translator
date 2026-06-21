@@ -307,11 +307,17 @@ function startHold() {
     document.getElementById('micLabel').innerHTML = '⏹️<br/>Listening...<br/>Keep holding';
   };
 
+  let processedIndices = new Set();
+
   recInstance.onresult = (e) => {
     let interim = '';
     for (let i = 0; i < e.results.length; i++) {
       if (e.results[i].isFinal) {
-        finalTranscript += (finalTranscript ? ' ' : '') + e.results[i][0].transcript;
+        // Only process each result index ONCE - prevents duplicates on restart
+        if (!processedIndices.has(i)) {
+          processedIndices.add(i);
+          finalTranscript += (finalTranscript ? ' ' : '') + e.results[i][0].transcript;
+        }
       } else {
         interim += e.results[i][0].transcript;
       }
@@ -331,17 +337,52 @@ function startHold() {
     }
   };
 
-  // If Android kills it mid-speech, restart immediately - but only if still holding
+  // If Android kills it mid-speech, restart with a FRESH recognition instance
+  // This clears the old results array so nothing gets re-processed
   recInstance.onend = () => {
     if (isRecording && !translated) {
+      // Create fresh instance - old results won't come back
+      try { recInstance.abort(); } catch (e) {}
+      recInstance = new SR();
+      recInstance.lang = direction === 'en-es' ? 'en-US' : 'es-ES';
+      recInstance.continuous = true;
+      recInstance.interimResults = true;
+
+      let restarted = false;
+      recInstance.onresult = (e) => {
+        let interim = '';
+        for (let i = 0; i < e.results.length; i++) {
+          if (e.results[i].isFinal) {
+            if (!restarted) {
+              // First final result after restart - check if it's a duplicate
+              restarted = true;
+            }
+            finalTranscript += (finalTranscript ? ' ' : '') + e.results[i][0].transcript;
+          } else {
+            interim += e.results[i][0].transcript;
+          }
+        }
+        const display = finalTranscript + (interim ? ' ' + interim : '');
+        document.getElementById('originalText').textContent = display.trim();
+        show('originalBox');
+      };
+
+      recInstance.onerror = (e) => {
+        if (e.error === 'no-speech' || e.error === 'aborted') return;
+      };
+
+      recInstance.onend = () => {
+        if (isRecording && !translated) {
+          try { recInstance.start(); } catch (e) {
+            setTimeout(() => { if (isRecording) { try { recInstance.start(); } catch (e2) {} } }, 100);
+          }
+        }
+      };
+
       try {
         recInstance.start();
       } catch (e) {
-        setTimeout(() => {
-          if (isRecording && !translated) {
-            try { recInstance.start(); } catch (e2) {}
-          }
-        }, 100);
+        setTimeout(() => { try { recInstance.start(); } catch (e2) {} }, 100);
       }
     }
   };
