@@ -299,31 +299,18 @@ function startHold() {
 
   recInstance = new SR();
   recInstance.lang = direction === 'en-es' ? 'en-US' : 'es-ES';
-  recInstance.continuous = true;
-  recInstance.interimResults = true;
+  recInstance.continuous = false;
+  recInstance.interimResults = false;
 
   recInstance.onspeechstart = () => {
     micReady = true;
     document.getElementById('micLabel').innerHTML = '⏹️<br/>Listening...<br/>Keep holding';
   };
 
-  let processedIndices = new Set();
-
   recInstance.onresult = (e) => {
-    let interim = '';
-    for (let i = 0; i < e.results.length; i++) {
-      if (e.results[i].isFinal) {
-        // Only process each result index ONCE - prevents duplicates on restart
-        if (!processedIndices.has(i)) {
-          processedIndices.add(i);
-          finalTranscript += (finalTranscript ? ' ' : '') + e.results[i][0].transcript;
-        }
-      } else {
-        interim += e.results[i][0].transcript;
-      }
-    }
-    const display = finalTranscript + (interim ? ' ' + interim : '');
-    document.getElementById('originalText').textContent = display.trim();
+    // Single clean result - no interim, no accumulation, no duplicates
+    finalTranscript = e.results[0][0].transcript;
+    document.getElementById('originalText').textContent = finalTranscript.trim();
     show('originalBox');
   };
 
