@@ -161,9 +161,9 @@
       <span class="icon">🎙️</span>
       <span id="micLabel">English<br/>→ Spanish</span>
     </button>
-    <p class="hint" id="hint">Tap the circle, speak, then tap again to translate</p>
+    <p class="hint" id="hint">Tap the circle, speak as long as you want, then tap again to translate</p>
     <div class="recording-indicator" id="recIndicator">
-      <span class="dot"></span> Recording — tap button to translate
+      <span class="dot"></span> Listening — keep talking, tap to stop when done
     </div>
     <div id="statusMsg" class="status-msg hidden"></div>
     <div id="originalBox" class="hidden">
@@ -287,7 +287,7 @@ function startRecording() {
 
   recognition = new SR();
   recognition.lang = direction === 'en-es' ? 'en-US' : 'es-ES';
-  recognition.continuous = false;
+  recognition.continuous = true;
   recognition.interimResults = true;
 
   // Fires when the mic is actually ready and listening
@@ -298,16 +298,18 @@ function startRecording() {
 
   recognition.onresult = (e) => {
     let interim = '';
-    let finalText = '';
     for (let i = 0; i < e.results.length; i++) {
       if (e.results[i].isFinal) {
-        finalText += e.results[i][0].transcript;
+        // Accumulate finalized chunks - don't lose earlier speech
+        if (!e.results[i][0].transcript.includes(finalTranscript)) {
+          finalTranscript += (finalTranscript ? ' ' : '') + e.results[i][0].transcript;
+        }
       } else {
         interim += e.results[i][0].transcript;
       }
     }
-    finalTranscript = finalText || interim;
-    document.getElementById('originalText').textContent = finalTranscript;
+    const display = finalTranscript + (interim ? ' ' + interim : '');
+    document.getElementById('originalText').textContent = display.trim();
     show('originalBox');
   };
 
@@ -320,7 +322,18 @@ function startRecording() {
   };
 
   recognition.onend = () => {
-    isRecording = false;
+    // If user is still recording (hasn't tapped to stop), auto-restart
+    // Android kills recognition after ~30-60s even in continuous mode
+    if (isRecording && !translated) {
+      try {
+        recognition.start();
+      } catch (e) {
+        setTimeout(() => { try { recognition.start(); } catch (e2) {} }, 200);
+      }
+      return;
+    }
+
+    // User tapped to stop - process the transcript
     const btn = document.getElementById('micBtn');
     btn.style.background = 'linear-gradient(135deg, #003893, #CE1126)';
     btn.style.border = 'none';
