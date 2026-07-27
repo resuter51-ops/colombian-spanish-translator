@@ -196,13 +196,15 @@ function buildRecognition() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   const rec = new SR();
   rec.lang = direction === 'en-es' ? 'en-US' : 'es-ES';
-  rec.continuous = false;
-  rec.interimResults = false;
+  rec.continuous = true;
+  rec.interimResults = true;
   rec.onresult = (e) => {
+    let interim = '';
     for (let i = e.resultIndex; i < e.results.length; i++) {
       if (e.results[i].isFinal) finalTranscript += e.results[i][0].transcript + ' ';
+      else interim += e.results[i][0].transcript;
     }
-    document.getElementById('originalText').textContent = finalTranscript.trim();
+    document.getElementById('originalText').textContent = (finalTranscript + interim).trim();
     show('originalBox');
   };
   rec.onspeechstart = () => {
